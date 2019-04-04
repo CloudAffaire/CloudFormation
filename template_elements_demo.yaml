@@ -35,7 +35,7 @@ Parameters:
     Default: web
     Type: String
     AllowedValues: [chache, web, db]
-    ConstraintDescription: must specify web or db. Default is db
+    ConstraintDescription: must specify web or db. Default is web
 #define condition according to user input
 Conditions: 
   DatabaseServer: !Equals [!Ref InstanceType, "db"]
