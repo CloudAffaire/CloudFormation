@@ -1,0 +1,78 @@
+##    Template to create EC2 instance based on user input, below template elements are used in this
+
+##    AWSTemplateFormatVersion: The AWS CloudFormation template version, currently only supports 2010-09-09
+##    Description: A text string that describes the template.
+##    Metadata: A text string that describes additional information about the template
+##    Mappings: A mapping of keys and associated values that you can use to specify conditional parameter values.
+##    Parameters: Values to pass to your template at runtime.
+##    Conditions: Controls resource creation\property assignment or outputs.
+##    Resources: Specifies the stack resources and their properties.
+##    Outputs: Values to be returned.
+
+#provide template version, description and metadata
+AWSTemplateFormatVersion: "2010-09-09"
+Description: 'Create an EC2 instance'
+Metadata:
+  VPC:
+    Description: "Change the instance tag, elastic ip assignment based on user input"
+#map ami-id according to the region you are in (for shortening of the code, only defined APAC regions)
+Mappings:
+  RegionMap:
+    ap-south-1:
+      AMI: "ami-0889b8a448de4fc44"
+    ap-southeast-1:
+      AMI: "ami-0b419c3a4b01d1859"
+    ap-northeast-2:
+      AMI: "ami-047f7b46bd6dd5d84"
+    ap-northeast-1:
+      AMI: "ami-0f9ae750e8274075b"
+    ap-southeast-2:
+      AMI: "ami-04481c741a0311bbb"
+#take instance type from user
+Parameters:
+  InstanceType:
+    Description: Instance Type.
+    Default: web
+    Type: String
+    AllowedValues: [chache, web, db]
+    ConstraintDescription: must specify web or db. Default is db
+#define condition according to user input
+Conditions: 
+  DatabaseServer: !Equals [!Ref InstanceType, "db"]
+  WebServer: !Equals [!Ref InstanceType, "web"]
+  CacheServer: !Equals [!Ref InstanceType, "chache"]
+#define resources that will be created
+Resources:
+  EC2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMI] #get the ami-id from mapping based on region (APAC)
+      InstanceType: "t2.micro" 
+      KeyName: "debjeet-KP" 
+      Tags:
+      - Key: "Name"
+        Value: !If [WebServer, "webserver", !If [CacheServer, "cacheserver", "dbserver"]] #give a tag according to condition
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Condition: DatabaseServer #create elastic ip only for db instance
+    Properties:
+      Domain: "vpc"
+  ElasticIPAssignment:
+    Type: AWS::EC2::EIPAssociation
+    Condition: DatabaseServer #attach the elastic ip to the instance only for db instance
+    Properties:
+      EIP: !Ref ElasticIP
+      InstanceId: !Ref EC2Instance
+#define outputs that will be displayed
+Outputs:
+  instanceID:
+    Description: EC2 instance id
+    Value: !Ref EC2Instance
+  instanceDescription:
+    Description: EC2 instance type
+    Value: !If [WebServer, "webserver", !If [CacheServer, "cacheserver", "dbserver"]]
+  elasticIP:
+    Condition: DatabaseServer #print the elastic ip if created
+    Description: Elastic IP Address
+    Value: !Ref ElasticIP
+
