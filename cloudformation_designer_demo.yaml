@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  InstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t2.small
+    AllowedValues:
+      - t1.micro
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+    ConstraintDescription: must be a valid EC2 instance type.
+  KeyName:
+    Description: Name of an EC2 KeyPair to enable SSH access to the instance.
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+Mappings:
+  AWSInstanceType2Arch:
+    t1.micro:
+      Arch: HVM64
+    t2.nano:
+      Arch: HVM64
+    t2.micro:
+      Arch: HVM64
+    t2.small:
+      Arch: HVM64
+    t2.medium:
+      Arch: HVM64
+  AWSRegionArch2AMI:
+    ap-northeast-1:
+      HVM64: ami-06cd52961ce9f0d85
+    ap-northeast-2:
+      HVM64: ami-0a10b2721688ce9d2
+    ap-northeast-3:
+      HVM64: ami-0d98120a9fb693f07
+    ap-southeast-1:
+      HVM64: ami-08569b978cc4dfa10
+    ap-southeast-2:
+      HVM64: ami-09b42976632b27e9b
+    ap-south-1:
+      HVM64: ami-0912f71e06545ad88
+Metadata:
+  'AWS::CloudFormation::Designer':
+    efb928de-5688-4244-a16b-a0a73fb76d8e:
+      size:
+        width: 260
+        height: 170
+      position:
+        x: 63
+        'y': 131
+      z: 0
+      embeds:
+        - e81da0f4-b993-4372-ab48-666669039fca
+    e81da0f4-b993-4372-ab48-666669039fca:
+      size:
+        width: 200
+        height: 110
+      position:
+        x: 94
+        'y': 171
+      z: 1
+      parent: efb928de-5688-4244-a16b-a0a73fb76d8e
+      embeds:
+        - d6218773-ac71-4527-86a1-ee93d29312f1
+      iscontainedinside:
+        - efb928de-5688-4244-a16b-a0a73fb76d8e
+        - efb928de-5688-4244-a16b-a0a73fb76d8e
+    d6218773-ac71-4527-86a1-ee93d29312f1:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 160
+        'y': 200
+      z: 2
+      parent: e81da0f4-b993-4372-ab48-666669039fca
+      iscontainedinside:
+        - e81da0f4-b993-4372-ab48-666669039fca
+Resources:
+  myVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: "Name"
+          Value: "myVPC"
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: efb928de-5688-4244-a16b-a0a73fb76d8e
+  mySUBNET:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.0.0/24
+      Tags:
+        - Key: "Name"
+          Value: "mySUBNET"
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: e81da0f4-b993-4372-ab48-666669039fca
+  myINSTANCE:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !FindInMap 
+        - AWSRegionArch2AMI
+        - !Ref 'AWS::Region'
+        - !FindInMap 
+          - AWSInstanceType2Arch
+          - !Ref InstanceType
+          - Arch
+      KeyName: !Ref KeyName
+      SubnetId: !Ref mySUBNET
+      Tags:
+        - Key: "Name"
+          Value: "myInstance"
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: d6218773-ac71-4527-86a1-ee93d29312f1
