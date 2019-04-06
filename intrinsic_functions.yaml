@@ -1,0 +1,337 @@
+#Function:
+#         Fn::Base64
+#         The intrinsic function Fn::Base64 returns the Base64 representation of the input string. 
+#         This function is typically used to pass encoded data to Amazon EC2 instances by way of the UserData property.
+#Syntax:
+#       Fn::Base64: valueToEncode
+#Parameters:
+#           valueToEncode: The string value you want to convert to Base64.
+#Return Value: 
+#             The original string, in Base64 representation.
+#Example:
+        Resources:
+          myInstance:
+            Type: AWS::EC2::Instance
+            Properties:
+              UserData:
+                Fn::Base64: !Sub | #updates and install https, mariadb-server and php
+                  #!/bin/bash -xe
+                  yum update -y
+                  yum install -y \
+                    httpd \
+                    mariadb-server \
+                    php
+
+
+#Function:
+#         Fn::Cidr
+#         The intrinsic function Fn::Cidr returns an array of CIDR address blocks. 
+#         The number of CIDR blocks returned is dependent on the count parameter.
+#Syntax:
+#       Fn::Cidr: 
+#         - ipBlock 
+#         - count
+#         - cidrBits 
+#Parameters:
+#           ipBlock: The user-specified CIDR address block to be split into smaller CIDR blocks.
+#           count: The number of CIDRs to generate. Valid range is between 1 and 256.
+#           cidrBits: The number of subnet bits for the CIDR. 32-x where x = cidrBits
+#Return Value: 
+#             An array of CIDR address blocks.
+#Example: 
+        Resources: 
+          myVPC:
+            Type: AWS::EC2::VPC
+            Properties:
+              CidrBlock: "10.0.0.0/16"
+          mySubnet:
+            Type: AWS::EC2::Subnet
+            Properties:
+              CidrBlock: !Select [ 1, Fn::Cidr [ !GetAtt myVPC.CidrBlock, 2, 8 ]] #returns 10.0.0.1/24 and 10.0.0.2/24
+              VpcId: !Ref myVPC
+
+#Function:
+#         Fn::FindInMap
+#         The intrinsic function Fn::FindInMap returns the value corresponding to keys 
+#         in a two-level map that is declared in the Mappings section.
+#Syntax:
+#       Fn::FindInMap: [ MapName, TopLevelKey, SecondLevelKey ]
+#Parameters:
+#           MapName: The logical name of a mapping declared in the Mappings section that contains the keys and values.
+#           TopLevelKey: The top-level key name. Its value is a list of key-value pairs.
+#           SecondLevelKey: The second-level key name, which is set to one of the keys from the list assigned to TopLevelKey.
+#Return Value: 
+#             The value that is assigned to SecondLevelKey.
+#Example:
+        Mappings: 
+          RegionMap: 
+            us-east-1: 
+              HVM64: "ami-1"
+              HVMG2: "ami-2"
+            us-west-1: 
+              HVM64: "ami-3"
+              HVMG2: "ami-4"
+        Resources: 
+          myEC2Instance: 
+            Type: "AWS::EC2::Instance"
+            Properties: 
+              ImageId: !FindInMap ##if region = us-east-1, returns ami-2
+                - RegionMap
+                - !Ref 'AWS::Region' 
+                - HVMG2
+
+#Function:
+#         Fn::GetAtt
+#         The Fn::GetAtt intrinsic function returns the value of an attribute from a resource in the template.
+#Syntax:
+#       Fn::GetAtt: [ logicalNameOfResource, attributeName ]
+#Parameters:
+#           logicalNameOfResource: The logical name of the resource that contains the attribute that you want.
+#           attributeName: The name of the resource-specific attribute whose value you want. 
+#Return Value: 
+#             The attribute value.
+#Example:
+        Resources: 
+          myVPC:
+            Type: AWS::EC2::VPC
+            Properties:
+              CidrBlock: "10.0.0.0/16"
+          mySubnet:
+            Type: AWS::EC2::Subnet
+            Properties:
+              CidrBlock: !Select [ 1, Fn::Cidr [ !GetAtt myVPC.CidrBlock, 2, 8 ]] #returns 10.0.0.1/24 and 10.0.0.2/24
+              VpcId: !Ref myVPC
+
+#Function:
+#         Fn::GetAZs
+#         The intrinsic function Fn::GetAZs returns an array that lists Availability Zones for a specified region.
+#Syntax:
+#       Fn::GetAZs: region
+#Parameters:
+#           region: The name of the region for which you want to get the Availability Zones.
+#           Return Value: The list of Availability Zones for the region.
+#Example:
+        Resources: 
+          myAvailabilityZone: !Select 
+            - 1
+            - Fn::GetAZs: !Ref 'AWS::Region' #if region = us-east-1, returns us-east-1b
+          myVPC:
+            Type: AWS::EC2::VPC
+            Properties:
+              CidrBlock: "10.0.0.0/16"
+          mySubnet: 
+            Type: "AWS::EC2::Subnet"
+            Properties: 
+              VpcId: 
+                !Ref myVPC
+              CidrBlock: 10.0.0.0/24
+              AvailabilityZone: !Ref myAvailabilityZone
+
+#Function:
+#         Fn::ImportValue
+#         The intrinsic function Fn::ImportValue returns the value of an output exported by another stack. 
+#Syntax:
+#       Fn::ImportValue: sharedValueToImport
+#Parameters:
+#           sharedValueToImport: The stack output value that you want to import.
+#Return Value: 
+#             The stack output value.
+#Example:
+        Fn::ImportValue:
+          !Sub "${NetworkStackName}-SecurityGroupID"
+
+#Function:
+#         Fn::Join
+#         The intrinsic function Fn::Join appends a set of values into a single value, separated by the specified delimiter. 
+#         If a delimiter is the empty string, the set of values are concatenated with no delimiter.
+#Syntax:
+#       Fn::Join: [ delimiter, [ comma-delimited list of values ] ]
+#Parameters:
+#           delimiter: The value you want to occur between fragments. 
+#           ListOfValues: The list of values you want combined.
+#Return Value: 
+#             The combined string.
+#Example:
+        Fn::Join: [ ":", [ a, b, c ] ] #returns a:b:c
+
+#Function:
+#         Fn::Select
+#         The intrinsic function Fn::Select returns a single object from a list of objects by index.
+#Syntax:
+#       Fn::Select: [ index, listOfObjects ] 
+#Parameters:
+#           index: The index of the object to retrieve. This must be a value from zero to N-1.
+#           listOfObjects: The list of objects to select from. This list must not be null, nor can it have null entries.
+#Return Value: 
+#             The selected object.
+#Example:
+        Resources: 
+          myVPC:
+            Type: AWS::EC2::VPC
+            Properties:
+              CidrBlock: "10.0.0.0/16"
+          mySubnet:
+            Type: AWS::EC2::Subnet
+            Properties:
+              CidrBlock: !Select [ 1, Fn::Cidr [ !GetAtt myVPC.CidrBlock, 2, 8 ]] #returns 10.0.0.1/24 and 10.0.0.2/24
+              VpcId: !Ref myVPC
+
+#Function:
+#         Fn::Split
+#         To split a string into a list of string values so that you can select an element from the resulting string list.
+#Syntax:
+#       Fn::Split: [ delimiter, source string ]
+#Parameters:
+#           delimiter: A string value that determines where the source string is divided.
+#           source string: The string value that you want to split.
+#Return Value: 
+#             A list of string values.
+#Example:
+        Fn::Split: [ ":", "a:b:c" ] #returns [a,b,c]
+
+#Function:
+#         Fn::Sub
+#         The intrinsic function Fn::Sub substitutes variables in an input string with values that you specify.
+#Syntax:
+#       Fn::Sub:
+#         - String
+#         - { Var1Name: Var1Value, Var2Name: Var2Value }
+#Parameters:
+#           String: Variables (represented as ${MyVarName}) that are substituted with their associated values at runtime.  
+#           VarName: The name of a variable that you included in the String parameter.
+#           VarValue: The value that AWS CloudFormation substitutes for the associated variable name at runtime.
+#Return Value: 
+#             AWS CloudFormation returns the original string, substituting the values for all of the variables.
+#Example:
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash -xe
+              yum update -y aws-cfn-bootstrap
+              /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource LaunchConfig --configsets wordpress_install --region ${AWS::Region}
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerGroup --region ${AWS::Region}
+#The following example uses Fn::Sub to substitute the AWS::StackName and 
+#AWS::Region pseudo parameters for the actual stack name and region at runtime.
+
+#Function:
+#         Fn::Transform
+#         The intrinsic function Fn::Transform specifies a macro to perform custom processing on part of a stack template.
+#Syntax:
+#       Fn::Transform:
+#         Name : macro name
+#         Parameters :
+#                 Key : value
+#Parameters:
+#           Name: The name of the macro you want to perform the processing.
+#           Parameters: The list parameters, specified as key-value pairs, to pass to the macro.
+#Return Value: 
+#             The processed template snippet to be included in the processed stack template.
+#Example:
+        'Fn::Transform':
+            Name: 'AWS::Include'
+            Parameters: {Location: {'Fn::FindInMap': [RegionMap, us-east-1, s3Location]}}
+#The following example calls the AWS::Include transform, specifying that the location to retrieve a template 
+#snippet from is located in the RegionMap mapping, under the key us-east-1 and nested key s3Location.
+
+#Function:
+#         Ref
+#         The intrinsic function Ref returns the value of the specified parameter or resource.
+#Syntax: 
+#       !Ref logicalName
+#Parameters:
+#           logicalName: The logical name of the resource or parameter you want to dereference.
+#Return Value: 
+#             The physical ID of the resource or the value of the parameter.
+#Example:
+        Resources: 
+          myVPC:
+            Type: AWS::EC2::VPC
+            Properties:
+              CidrBlock: "10.0.0.0/16"
+          mySubnet:
+            Type: AWS::EC2::Subnet
+            Properties:
+              CidrBlock: !Select [ 1, Fn::Cidr [ !GetAtt myVPC.CidrBlock, 2, 8 ]] #returns 10.0.0.1/24 and 10.0.0.2/24
+              VpcId: !Ref myVPC
+
+#Function:   
+#         Fn::And
+#         Returns true if all the specified conditions are true, or returns false if any one of the conditions is false. 
+#Syntax:
+#       !And [condition]
+#Parameters:
+#           condition: A condition that evaluates to true or false.
+#Return Value: 
+#             true/false
+#Example:
+        MyAndCondition: !And
+          - !Equals ["sg-mysggroup", !Ref ASecurityGroup]
+          - !Condition SomeOtherCondition
+#The following MyAndCondition evaluates to true if the referenced 
+#security group name is equal to sg-mysggroup and if SomeOtherCondition evaluates to true:
+
+#Function:
+#         Fn::Equals
+#         Compares if two values are equal. Returns true if the two values are equal or false if they aren't.
+#Syntax:
+#       !Equals [value_1, value_2]
+#Parameters:
+#           value: A value of any type that you want to compare.
+#Return Value: 
+#             true/false
+#Example:
+        MyAndCondition: !And
+          - !Equals ["sg-mysggroup", !Ref ASecurityGroup]
+          - !Condition SomeOtherCondition
+#The following MyAndCondition evaluates to true if the referenced 
+#security group name is equal to sg-mysggroup and if SomeOtherCondition evaluates to true:
+
+#Function:
+#         Fn::If
+          #Returns one value if the specified condition is true and another value if the specified condition is false.
+#Syntax:
+#       !If [condition_name, value_if_true, value_if_false]
+#Parameters:
+#           condition_name: A reference to a condition in the Conditions section. Use the condition's name to reference it.
+#           value_if_true: A value to be returned if the specified condition evaluates to true.
+#           value_if_false: A value to be returned if the specified condition evaluates to false.
+#Return Value: 
+#             value_if_true/value_if_false
+#Example:
+        Outputs:
+          instanceID:
+            Description: EC2 instance id
+            Value: !Ref EC2Instance
+          instanceDescription:
+            Description: EC2 instance type
+            Value: !If [WebServer, "webserver", !If [CacheServer, "cacheserver", "dbserver"]]
+          elasticIP:
+            Condition: DatabaseServer #print the elastic ip if created
+            Description: Elastic IP Address
+            Value: !Ref ElasticIP
+
+#Function:
+#         Fn::Not
+#         Returns true if condition is false or returns false if condition is true. Fn::Not acts as a NOT operator.
+#Syntax:
+#       !Not [condition]
+#Parameters:
+#           condition: A condition such as Fn::Equals that evaluates to true or false.
+#Return Value: 
+#             true/false
+#Example:
+        MyNotCondition:
+          !Not [!Equals [!Ref EnvironmentType, prod]]
+
+#Function:
+#         Fn::Or
+#         Returns true if any one of the conditions is true, or returns false if all of the conditions are false.
+#Syntax:
+#       !Or [condition, ...]
+#Parameters:
+#           condition: A condition that evaluates to true or false.
+#Return Value: 
+#             true/false
+#Example:
+        MyOrCondition:
+          !Or [!Equals [sg-mysggroup, !Ref ASecurityGroup], Condition: SomeOtherCondition]
