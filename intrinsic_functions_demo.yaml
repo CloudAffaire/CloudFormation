@@ -1,0 +1,157 @@
+#Create VPC, Public subnet and one EC2 instance. Used below Intrinsic Functions in this template
+#Fn::Select
+#Fn::GetAZs
+#Fn::GetAtt
+#Fn::FindInMap
+#Fn::Cidr
+#Fn::Base64
+#Fn::Equals
+#Fn::If
+#!Sub
+#Ref:
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'Create VPC, Public subnet and one EC2 instance'
+Metadata:
+  VPC:
+    Description: "Change the instance tag, elastic ip assignment based on user input"
+Parameters:
+  InstanceRole:
+    Description: EC2 instance role.
+    Default: prod
+    Type: String
+    AllowedValues: [prod, dev, test]
+    ConstraintDescription: must specify pord or dev or test. Default is test
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t1.micro
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+    ConstraintDescription: must be a valid EC2 instance type.
+  KeyName:
+    Description: KeyPair.
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing KeyPair.
+Conditions: 
+  ProductionServer: !Equals [!Ref InstanceRole, "prod"]
+  DevelopmentServer: !Equals [!Ref InstanceRole, "dev"]
+  TestingServer: !Equals [!Ref InstanceRole, "test"]
+Mappings:
+  RegionMap:
+    ap-south-1:
+      AMI: "ami-0889b8a448de4fc44"
+    ap-southeast-1:
+      AMI: "ami-0b419c3a4b01d1859"
+    ap-northeast-2:
+      AMI: "ami-047f7b46bd6dd5d84"
+    ap-northeast-1:
+      AMI: "ami-0f9ae750e8274075b"
+    ap-southeast-2:
+      AMI: "ami-04481c741a0311bbb"
+Resources:
+  myVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+        - Key: "Name"
+          Value: "myVPC"
+  mySUBNET:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: 
+        Fn::Select: #selects the 1st availability zone of the region
+          - 0
+          - Fn::GetAZs: #list all availability zones of the region
+              Ref: 'AWS::Region'
+      VpcId: !Ref myVPC #references myVPC id
+      CidrBlock: 
+        Fn::Select: 
+          - 0
+          - Fn::Cidr: #creates a list of cidr starting from 10.0.0.0/24
+            - !GetAtt myVPC.CidrBlock #gets cidr block of myVPC element
+            - 1
+            - 8 
+      MapPublicIpOnLaunch: 'true'
+      Tags:
+        - Key: "Name"
+          Value: "mySUBNET"
+  myINTERNETGATEWAY:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: "Name"
+        Value: "myINTERNETGATEWAY"
+  myAttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myVPC
+      InternetGatewayId: !Ref myINTERNETGATEWAY
+  myROUTETABLE:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+      - Key: "Name"
+        Value: "myROUTETABLE"
+  myRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref myROUTETABLE
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref myINTERNETGATEWAY
+  mySubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref mySUBNET
+      RouteTableId: !Ref myROUTETABLE
+  mySECURITYGROUP:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref myVPC
+      GroupName: "mySECURITYGROUP"
+      GroupDescription: Allow ssh and http acess
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: "Name"
+        Value: "mySECURITYGROUP"
+  myINSTANCE:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !FindInMap [ RegionMap, !Ref 'AWS::Region', AMI ] #maps AMI id according to the region with Mapping element defined earlier
+      KeyName: !Ref KeyName
+      SubnetId: !Ref mySUBNET
+      SecurityGroupIds: 
+      - Ref: mySECURITYGROUP
+      UserData:
+        Fn::Base64: #defines user data in Base64 format
+          !Sub | #enabled to define multiline user data
+            #!/bin/bash -xe
+            yum update -y
+            yum install httpd -y
+      Tags:
+        - Key: "Name"
+          Value: !If [ProductionServer, "myInstanceProd", !If [DevelopmentServer, "myInstanceDev", "myInstanceTest"]] #if example
+Outputs:
+  instanceTag:
+    Description: EC2 instance type
+    Value: !If [ProductionServer, "myInstanceProd", !If [DevelopmentServer, "myInstanceDev", "myInstanceTest"]]
+  instancePublicIP:
+    Description: EC2 instance public IP address
+    Value: !GetAtt myINSTANCE.PublicIp
