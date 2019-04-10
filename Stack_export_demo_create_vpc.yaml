@@ -9,7 +9,7 @@ Resources:
         - Key: "Name"
           Value: "myVPC"
 Outputs:
-  instanceID:
+  vpcID:
     Description: VPC id
     Value: !Ref myVPC
     Export:
