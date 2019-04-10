@@ -1,0 +1,18 @@
+Resources:  
+  myVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+        - Key: "Name"
+          Value: "myVPC"
+Outputs:
+  instanceID:
+    Description: VPC id
+    Value: !Ref myVPC
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-VpcID"
+
