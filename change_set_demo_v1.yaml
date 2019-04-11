@@ -1,0 +1,10 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+  EC2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: "ami-0889b8a448de4fc44"
+      InstanceType: "t2.micro" 
+      Tags:
+      - Key: "Name"
+        Value: "myINSTANCEv1"
